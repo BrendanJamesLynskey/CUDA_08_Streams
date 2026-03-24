@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streams &amp; Async Execution</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-card: #0d1117;
+            --bg-code: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #76B900;
+            --accent-dim: #76B90044;
+            --accent-glow: #76B90033;
+            --border: #21262d;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Inter', sans-serif;
+            --max-width: 900px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 .accent {
+            color: var(--accent);
+        }
+
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        /* ── Tag Pills ── */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+
+        /* ── Pipeline Flow Bar ── */
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .pipeline-arrow {
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        /* ── Slides ── */
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .slide p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .slide p strong {
+            color: var(--text-primary);
+        }
+
+        .slide ul, .slide ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .slide li {
+            margin-bottom: 0.4rem;
+        }
+
+        .slide li strong {
+            color: var(--text-primary);
+        }
+
+        /* ── Code Blocks ── */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-block pre {
+            margin: 0;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+        }
+
+        /* Syntax highlighting (manual) */
+        .kw { color: #ff7b72; }
+        .fn { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cm { color: #8b949e; font-style: italic; }
+        .num { color: #79c0ff; }
+        .type { color: #ffa657; }
+        .dir { color: #ff7b72; }
+        .mac { color: #ffa657; }
+
+        /* ── Tables ── */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) td {
+            background: rgba(13, 17, 23, 0.5);
+        }
+
+        /* ── Diagrams ── */
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .diagram-box.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+        }
+
+        .diagram-box.dim {
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+
+        .diagram-arrow {
+            color: var(--accent);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        /* Vertical flow diagrams */
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-vertical .diagram-arrow {
+            font-size: 1.1rem;
+        }
+
+        /* Grid diagram */
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-grid.cols-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .diagram-grid.cols-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .diagram-panel.accent-border {
+            border-left: 3px solid var(--accent);
+        }
+
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .diagram-panel p, .diagram-panel ul {
+            font-size: 0.85rem;
+        }
+
+        /* ── Callout Boxes ── */
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+
+        .callout p {
+            margin-bottom: 0;
+        }
+
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+
+        /* ── Contents list ── */
+        .contents-list {
+            list-style: none;
+            padding-left: 0;
+            counter-reset: contents;
+        }
+
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .contents-list li:last-child {
+            border-bottom: none;
+        }
+
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+
+        .contents-list a {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .contents-list a:hover {
+            color: var(--accent);
+        }
+
+        /* ── Timeline Diagrams ── */
+        .timeline-diagram {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .timeline-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            text-align: center;
+        }
+
+        .timeline-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            gap: 0;
+        }
+
+        .timeline-row-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            min-width: 90px;
+            text-align: right;
+            padding-right: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .timeline-track {
+            display: flex;
+            flex: 1;
+            height: 32px;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .timeline-bar {
+            height: 100%;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            padding: 0 0.5rem;
+        }
+
+        .timeline-bar.compute {
+            background: rgba(118, 185, 0, 0.7);
+            border: 1px solid #76B900;
+        }
+
+        .timeline-bar.h2d {
+            background: rgba(79, 139, 255, 0.7);
+            border: 1px solid #4f8bff;
+        }
+
+        .timeline-bar.d2h {
+            background: rgba(255, 166, 87, 0.7);
+            border: 1px solid #ffa657;
+        }
+
+        .timeline-bar.idle {
+            background: transparent;
+        }
+
+        .timeline-legend {
+            display: flex;
+            gap: 1.25rem;
+            justify-content: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .timeline-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .timeline-legend-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+
+        .timeline-legend-swatch.compute {
+            background: rgba(118, 185, 0, 0.7);
+            border: 1px solid #76B900;
+        }
+
+        .timeline-legend-swatch.h2d {
+            background: rgba(79, 139, 255, 0.7);
+            border: 1px solid #4f8bff;
+        }
+
+        .timeline-legend-swatch.d2h {
+            background: rgba(255, 166, 87, 0.7);
+            border: 1px solid #ffa657;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .slide {
+                padding: 3rem 1rem;
+                min-height: auto;
+            }
+
+            .slide-number {
+                font-size: 3rem;
+                top: 1.5rem;
+                right: 1rem;
+            }
+
+            .slide h2 {
+                font-size: 1.5rem;
+            }
+
+            .diagram-grid.cols-2,
+            .diagram-grid.cols-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .pipeline {
+                gap: 0.15rem;
+            }
+
+            .pipeline-step {
+                font-size: 0.6rem;
+                padding: 0.2rem 0.4rem;
+            }
+
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            table {
+                font-size: 0.78rem;
+            }
+
+            .timeline-row-label {
+                min-width: 60px;
+                font-size: 0.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════ HERO ════════════════════════════════════════════ -->
+<header class="hero">
+    <div class="series-label">CUDA Programming Series — Tutorial 08</div>
+    <h1>Streams &amp; <span class="accent">Async Execution</span></h1>
+    <p class="subtitle">Overlapping compute and data transfer, CUDA streams, events, concurrency patterns, and the default stream trap.</p>
+
+    <div class="tags">
+        <span class="tag">CUDA</span>
+        <span class="tag">Streams</span>
+        <span class="tag">Async</span>
+        <span class="tag">Events</span>
+        <span class="tag">Pipelining</span>
+        <span class="tag">Concurrency</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">Default Stream</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Stream API</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Overlap</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Events</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Pipelining</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Per-Thread Stream</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Exercises</span>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════ SLIDE 00 — Contents ═══════════════════════════════ -->
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We'll Cover</h2>
+    <p>This tutorial explores how to unlock GPU concurrency by overlapping computation with data transfers using CUDA streams and events.</p>
+    <ul class="contents-list">
+        <li><a href="#slide-01">The Default Stream Trap</a></li>
+        <li><a href="#slide-02">CUDA Streams</a></li>
+        <li><a href="#slide-03">Overlapping Compute &amp; Transfer</a></li>
+        <li><a href="#slide-04">CUDA Events</a></li>
+        <li><a href="#slide-05">Practical Pattern — Pipelined Processing</a></li>
+        <li><a href="#slide-06">The Null Stream &amp; --default-stream per-thread</a></li>
+        <li><a href="#slide-07">Exercises</a></li>
+        <li><a href="#slide-08">Summary &amp; Next Steps</a></li>
+    </ul>
+    <div class="callout">
+        <div class="callout-label">Prerequisites</div>
+        <p>Tutorials 01&ndash;04 (GPU Architecture, First Kernel, Memory Model, Thread Synchronisation). You should be comfortable launching kernels and managing device memory.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 01 — The Default Stream Trap ═══════════════════════════════ -->
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>The Default Stream Trap</h2>
+
+    <p>When you call CUDA runtime functions without specifying a stream, everything goes into <strong>stream 0</strong> (the default stream). This means every operation waits for the previous one to finish &mdash; even when the hardware could run them concurrently.</p>
+
+    <h3>Everything Is Serialised</h3>
+    <p>Consider this typical pattern: copy data to device, run a kernel, copy results back. On stream 0, each step blocks until the previous one completes.</p>
+
+    <div class="code-block">
+        <div class="code-header">serialised_on_default_stream.cu</div>
+        <pre><code><span class="fn">cudaMemcpy</span>(d_in, h_in, size, cudaMemcpyHostToDevice);   <span class="cm">// blocks until done</span>
+<span class="fn">myKernel</span>&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_in, d_out);                 <span class="cm">// waits for memcpy</span>
+<span class="fn">cudaMemcpy</span>(h_out, d_out, size, cudaMemcpyDeviceToHost); <span class="cm">// waits for kernel</span></code></pre>
+    </div>
+
+    <h3>Sequential Timeline on Stream 0</h3>
+    <div class="timeline-diagram">
+        <div class="timeline-label">Stream 0 &mdash; All Operations Serialised</div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 0</div>
+            <div class="timeline-track">
+                <div class="timeline-bar h2d" style="flex: 2;">H&rarr;D Copy</div>
+                <div class="timeline-bar compute" style="flex: 4;">Kernel</div>
+                <div class="timeline-bar d2h" style="flex: 2;">D&rarr;H Copy</div>
+            </div>
+        </div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">GPU idle</div>
+            <div class="timeline-track">
+                <div class="timeline-bar idle" style="flex: 2;"></div>
+                <div class="timeline-bar idle" style="flex: 4;"></div>
+                <div class="timeline-bar idle" style="flex: 2;"></div>
+            </div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 0.75rem;">
+            &larr;&mdash;&mdash;&mdash;&mdash;&mdash; Total time: H2D + Kernel + D2H &mdash;&mdash;&mdash;&mdash;&mdash;&rarr;
+        </div>
+        <div class="timeline-legend">
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch compute"></div> Compute</div>
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch h2d"></div> Host &rarr; Device</div>
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch d2h"></div> Device &rarr; Host</div>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">The Problem</div>
+        <p>Modern GPUs have separate <strong>copy engines</strong> and <strong>compute engines</strong>. They can physically transfer data and run kernels at the same time. But the default stream serialises everything, leaving hardware idle. The solution: explicit CUDA streams.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 02 — CUDA Streams ═══════════════════════════════ -->
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>CUDA Streams</h2>
+
+    <p>A <strong>CUDA stream</strong> is a sequence of operations that execute in order on the GPU. Operations in <strong>different streams</strong> can run concurrently &mdash; the GPU scheduler interleaves them on the available hardware engines.</p>
+
+    <h3>Stream Lifecycle</h3>
+    <div class="diagram-flow">
+        <div class="diagram-box accent">cudaStreamCreate</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box">Issue Operations</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box">cudaStreamSynchronize</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box accent">cudaStreamDestroy</div>
+    </div>
+
+    <h3>API Essentials</h3>
+    <div class="code-block">
+        <div class="code-header">stream_basics.cu</div>
+        <pre><code><span class="type">cudaStream_t</span> stream1, stream2;
+
+<span class="cm">// Create streams</span>
+<span class="fn">cudaStreamCreate</span>(&amp;stream1);
+<span class="fn">cudaStreamCreate</span>(&amp;stream2);
+
+<span class="cm">// Issue work to different streams</span>
+<span class="fn">myKernel</span>&lt;&lt;&lt;grid, block, <span class="num">0</span>, stream1&gt;&gt;&gt;(d_a);  <span class="cm">// 4th param = stream</span>
+<span class="fn">myKernel</span>&lt;&lt;&lt;grid, block, <span class="num">0</span>, stream2&gt;&gt;&gt;(d_b);  <span class="cm">// runs concurrently!</span>
+
+<span class="cm">// Synchronise</span>
+<span class="fn">cudaStreamSynchronize</span>(stream1);  <span class="cm">// block host until stream1 done</span>
+<span class="fn">cudaStreamSynchronize</span>(stream2);
+
+<span class="cm">// Clean up</span>
+<span class="fn">cudaStreamDestroy</span>(stream1);
+<span class="fn">cudaStreamDestroy</span>(stream2);</code></pre>
+    </div>
+
+    <h3>Key Rules</h3>
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th>Rule</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Within a stream</strong></td>
+                <td>Operations execute in issue order (FIFO)</td>
+            </tr>
+            <tr>
+                <td><strong>Across streams</strong></td>
+                <td>No ordering guarantee &mdash; may overlap</td>
+            </tr>
+            <tr>
+                <td><strong>Default stream</strong></td>
+                <td>Stream 0 synchronises with all other streams (legacy behaviour)</td>
+            </tr>
+            <tr>
+                <td><strong>Kernel launch</strong></td>
+                <td>4th argument in &lt;&lt;&lt;grid, block, sharedMem, stream&gt;&gt;&gt;</td>
+            </tr>
+            <tr>
+                <td><strong>Async memcpy</strong></td>
+                <td>Use <code style="color: var(--accent);">cudaMemcpyAsync()</code> &mdash; requires pinned memory</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Important</div>
+        <p><code style="color: var(--accent);">cudaMemcpyAsync</code> returns immediately to the host &mdash; the copy happens in the background. But the source/destination must be <strong>pinned (page-locked) memory</strong> allocated with <code style="color: var(--accent);">cudaMallocHost()</code>, not regular <code>malloc()</code>.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 03 — Overlapping Compute & Transfer ═══════════════════════════════ -->
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>Overlapping Compute &amp; Transfer</h2>
+
+    <p>The real power of streams: run a kernel on one dataset while simultaneously transferring the next dataset. This requires <strong>pinned memory</strong> and <strong>async memcpy</strong>.</p>
+
+    <h3>Requirements for Overlap</h3>
+    <ul>
+        <li><strong>Pinned host memory</strong> &mdash; allocated with <code style="color: var(--accent);">cudaMallocHost()</code> or <code style="color: var(--accent);">cudaHostAlloc()</code></li>
+        <li><strong>Async operations</strong> &mdash; <code style="color: var(--accent);">cudaMemcpyAsync()</code> instead of <code>cudaMemcpy()</code></li>
+        <li><strong>Separate streams</strong> &mdash; operations must be in different streams to overlap</li>
+        <li><strong>Device support</strong> &mdash; GPU must have concurrent copy+compute capability (all modern GPUs)</li>
+    </ul>
+
+    <h3>Serialised vs Overlapped Execution</h3>
+    <div class="timeline-diagram">
+        <div class="timeline-label">Without Streams &mdash; Everything Sequential</div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 0</div>
+            <div class="timeline-track">
+                <div class="timeline-bar h2d" style="flex: 2;">H&rarr;D A</div>
+                <div class="timeline-bar compute" style="flex: 3;">Kernel A</div>
+                <div class="timeline-bar d2h" style="flex: 2;">D&rarr;H A</div>
+                <div class="timeline-bar h2d" style="flex: 2;">H&rarr;D B</div>
+                <div class="timeline-bar compute" style="flex: 3;">Kernel B</div>
+                <div class="timeline-bar d2h" style="flex: 2;">D&rarr;H B</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="timeline-diagram">
+        <div class="timeline-label">With Streams &mdash; Compute Overlaps Transfer</div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 1</div>
+            <div class="timeline-track">
+                <div class="timeline-bar h2d" style="flex: 2;">H&rarr;D A</div>
+                <div class="timeline-bar compute" style="flex: 3;">Kernel A</div>
+                <div class="timeline-bar d2h" style="flex: 2;">D&rarr;H A</div>
+                <div class="timeline-bar idle" style="flex: 3;"></div>
+            </div>
+        </div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 2</div>
+            <div class="timeline-track">
+                <div class="timeline-bar idle" style="flex: 2;"></div>
+                <div class="timeline-bar h2d" style="flex: 2;">H&rarr;D B</div>
+                <div class="timeline-bar compute" style="flex: 3;">Kernel B</div>
+                <div class="timeline-bar d2h" style="flex: 2;">D&rarr;H B</div>
+                <div class="timeline-bar idle" style="flex: 1;"></div>
+            </div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); text-align: center; margin-top: 0.75rem;">
+            Overlap saves time! H&rarr;D B runs during Kernel A
+        </div>
+        <div class="timeline-legend">
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch compute"></div> Compute</div>
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch h2d"></div> Host &rarr; Device</div>
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch d2h"></div> Device &rarr; Host</div>
+        </div>
+    </div>
+
+    <h3>Complete Example &mdash; Two-Stream Overlap</h3>
+    <div class="code-block">
+        <div class="code-header">stream_overlap.cu &mdash; compilable: nvcc -o stream_overlap stream_overlap.cu</div>
+        <pre><code><span class="dir">#include</span> <span class="str">&lt;cstdio&gt;</span>
+<span class="dir">#include</span> <span class="str">&lt;cuda_runtime.h&gt;</span>
+
+<span class="cm">// Simple kernel: scale each element by 2</span>
+<span class="kw">__global__</span> <span class="kw">void</span> <span class="fn">scaleKernel</span>(<span class="type">float</span> *data, <span class="type">int</span> N) {
+    <span class="type">int</span> idx = blockIdx.x * blockDim.x + threadIdx.x;
+    <span class="kw">if</span> (idx &lt; N) {
+        data[idx] *= <span class="num">2.0f</span>;
+    }
+}
+
+<span class="type">int</span> <span class="fn">main</span>() {
+    <span class="kw">const</span> <span class="type">int</span> N = <span class="num">1</span> &lt;&lt; <span class="num">20</span>;  <span class="cm">// 1M elements per chunk</span>
+    <span class="kw">const</span> <span class="type">size_t</span> size = N * <span class="kw">sizeof</span>(<span class="type">float</span>);
+
+    <span class="cm">// Allocate pinned host memory (required for async transfers)</span>
+    <span class="type">float</span> *h_A, *h_B;
+    <span class="fn">cudaMallocHost</span>(&amp;h_A, size);
+    <span class="fn">cudaMallocHost</span>(&amp;h_B, size);
+
+    <span class="cm">// Initialise host data</span>
+    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; N; i++) {
+        h_A[i] = <span class="num">1.0f</span>;
+        h_B[i] = <span class="num">2.0f</span>;
+    }
+
+    <span class="cm">// Allocate device memory</span>
+    <span class="type">float</span> *d_A, *d_B;
+    <span class="fn">cudaMalloc</span>(&amp;d_A, size);
+    <span class="fn">cudaMalloc</span>(&amp;d_B, size);
+
+    <span class="cm">// Create two streams</span>
+    <span class="type">cudaStream_t</span> stream1, stream2;
+    <span class="fn">cudaStreamCreate</span>(&amp;stream1);
+    <span class="fn">cudaStreamCreate</span>(&amp;stream2);
+
+    <span class="type">int</span> threads = <span class="num">256</span>;
+    <span class="type">int</span> blocks = (N + threads - <span class="num">1</span>) / threads;
+
+    <span class="cm">// Issue operations to stream 1</span>
+    <span class="fn">cudaMemcpyAsync</span>(d_A, h_A, size, cudaMemcpyHostToDevice, stream1);
+    <span class="fn">scaleKernel</span>&lt;&lt;&lt;blocks, threads, <span class="num">0</span>, stream1&gt;&gt;&gt;(d_A, N);
+    <span class="fn">cudaMemcpyAsync</span>(h_A, d_A, size, cudaMemcpyDeviceToHost, stream1);
+
+    <span class="cm">// Issue operations to stream 2 (can overlap with stream 1)</span>
+    <span class="fn">cudaMemcpyAsync</span>(d_B, h_B, size, cudaMemcpyHostToDevice, stream2);
+    <span class="fn">scaleKernel</span>&lt;&lt;&lt;blocks, threads, <span class="num">0</span>, stream2&gt;&gt;&gt;(d_B, N);
+    <span class="fn">cudaMemcpyAsync</span>(h_B, d_B, size, cudaMemcpyDeviceToHost, stream2);
+
+    <span class="cm">// Wait for both streams to complete</span>
+    <span class="fn">cudaStreamSynchronize</span>(stream1);
+    <span class="fn">cudaStreamSynchronize</span>(stream2);
+
+    <span class="cm">// Verify results</span>
+    <span class="fn">printf</span>(<span class="str">"h_A[0] = %.1f (expected 2.0)\n"</span>, h_A[<span class="num">0</span>]);
+    <span class="fn">printf</span>(<span class="str">"h_B[0] = %.1f (expected 4.0)\n"</span>, h_B[<span class="num">0</span>]);
+
+    <span class="cm">// Cleanup</span>
+    <span class="fn">cudaStreamDestroy</span>(stream1);
+    <span class="fn">cudaStreamDestroy</span>(stream2);
+    <span class="fn">cudaFree</span>(d_A);
+    <span class="fn">cudaFree</span>(d_B);
+    <span class="fn">cudaFreeHost</span>(h_A);
+    <span class="fn">cudaFreeHost</span>(h_B);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Key Insight</div>
+        <p>The issue order matters. If you issue all of stream 1's work first, then all of stream 2's work, the GPU can start stream 2's H&rarr;D copy while stream 1's kernel is still running. For best overlap, interleave operations: copy1, copy2, kernel1, kernel2, etc. (See Slide 05 for the optimal pattern.)</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 04 — CUDA Events ═══════════════════════════════ -->
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>CUDA Events</h2>
+
+    <p>CUDA events are lightweight markers you insert into a stream. They serve two purposes: <strong>precise GPU timing</strong> and <strong>inter-stream synchronisation</strong>.</p>
+
+    <h3>Event API</h3>
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th>Function</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td><code style="color: var(--accent);">cudaEventCreate(&amp;event)</code></td>
+                <td>Create an event object</td>
+            </tr>
+            <tr>
+                <td><code style="color: var(--accent);">cudaEventRecord(event, stream)</code></td>
+                <td>Record the event in a stream (marks a point in time)</td>
+            </tr>
+            <tr>
+                <td><code style="color: var(--accent);">cudaEventSynchronize(event)</code></td>
+                <td>Block the host until the event has been reached</td>
+            </tr>
+            <tr>
+                <td><code style="color: var(--accent);">cudaEventElapsedTime(&amp;ms, start, stop)</code></td>
+                <td>Measure time between two events (milliseconds)</td>
+            </tr>
+            <tr>
+                <td><code style="color: var(--accent);">cudaStreamWaitEvent(stream, event)</code></td>
+                <td>Make a stream wait until an event in another stream completes</td>
+            </tr>
+            <tr>
+                <td><code style="color: var(--accent);">cudaEventDestroy(event)</code></td>
+                <td>Destroy the event object</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Timing with Events</h3>
+    <p>CUDA events give you <strong>accurate GPU-side timing</strong>, unaffected by host-side noise, kernel launch overhead, or OS scheduling.</p>
+
+    <div class="diagram-flow">
+        <div class="diagram-box accent">Record Start</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box">Kernel Executes</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box accent">Record Stop</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box">ElapsedTime</div>
+    </div>
+
+    <h3>Complete Timing Example</h3>
+    <div class="code-block">
+        <div class="code-header">event_timing.cu &mdash; compilable: nvcc -o event_timing event_timing.cu</div>
+        <pre><code><span class="dir">#include</span> <span class="str">&lt;cstdio&gt;</span>
+<span class="dir">#include</span> <span class="str">&lt;cuda_runtime.h&gt;</span>
+
+<span class="kw">__global__</span> <span class="kw">void</span> <span class="fn">vectorAdd</span>(<span class="kw">const</span> <span class="type">float</span> *a, <span class="kw">const</span> <span class="type">float</span> *b,
+                           <span class="type">float</span> *c, <span class="type">int</span> N) {
+    <span class="type">int</span> idx = blockIdx.x * blockDim.x + threadIdx.x;
+    <span class="kw">if</span> (idx &lt; N)
+        c[idx] = a[idx] + b[idx];
+}
+
+<span class="type">int</span> <span class="fn">main</span>() {
+    <span class="kw">const</span> <span class="type">int</span> N = <span class="num">1</span> &lt;&lt; <span class="num">22</span>;  <span class="cm">// 4M elements</span>
+    <span class="kw">const</span> <span class="type">size_t</span> size = N * <span class="kw">sizeof</span>(<span class="type">float</span>);
+
+    <span class="cm">// Host arrays</span>
+    <span class="type">float</span> *h_a, *h_b, *h_c;
+    <span class="fn">cudaMallocHost</span>(&amp;h_a, size);
+    <span class="fn">cudaMallocHost</span>(&amp;h_b, size);
+    <span class="fn">cudaMallocHost</span>(&amp;h_c, size);
+
+    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; N; i++) {
+        h_a[i] = <span class="num">1.0f</span>;
+        h_b[i] = <span class="num">2.0f</span>;
+    }
+
+    <span class="cm">// Device arrays</span>
+    <span class="type">float</span> *d_a, *d_b, *d_c;
+    <span class="fn">cudaMalloc</span>(&amp;d_a, size);
+    <span class="fn">cudaMalloc</span>(&amp;d_b, size);
+    <span class="fn">cudaMalloc</span>(&amp;d_c, size);
+
+    <span class="cm">// Create events for timing</span>
+    <span class="type">cudaEvent_t</span> start, stop;
+    <span class="fn">cudaEventCreate</span>(&amp;start);
+    <span class="fn">cudaEventCreate</span>(&amp;stop);
+
+    <span class="cm">// Copy data to device</span>
+    <span class="fn">cudaMemcpy</span>(d_a, h_a, size, cudaMemcpyHostToDevice);
+    <span class="fn">cudaMemcpy</span>(d_b, h_b, size, cudaMemcpyHostToDevice);
+
+    <span class="type">int</span> threads = <span class="num">256</span>;
+    <span class="type">int</span> blocks = (N + threads - <span class="num">1</span>) / threads;
+
+    <span class="cm">// Record start event, launch kernel, record stop event</span>
+    <span class="fn">cudaEventRecord</span>(start);
+    <span class="fn">vectorAdd</span>&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(d_a, d_b, d_c, N);
+    <span class="fn">cudaEventRecord</span>(stop);
+
+    <span class="cm">// Wait for stop event to complete</span>
+    <span class="fn">cudaEventSynchronize</span>(stop);
+
+    <span class="cm">// Calculate elapsed time</span>
+    <span class="type">float</span> milliseconds = <span class="num">0.0f</span>;
+    <span class="fn">cudaEventElapsedTime</span>(&amp;milliseconds, start, stop);
+    <span class="fn">printf</span>(<span class="str">"Kernel execution time: %.3f ms\n"</span>, milliseconds);
+
+    <span class="cm">// Copy result back and verify</span>
+    <span class="fn">cudaMemcpy</span>(h_c, d_c, size, cudaMemcpyDeviceToHost);
+    <span class="fn">printf</span>(<span class="str">"h_c[0] = %.1f (expected 3.0)\n"</span>, h_c[<span class="num">0</span>]);
+
+    <span class="cm">// Cleanup</span>
+    <span class="fn">cudaEventDestroy</span>(start);
+    <span class="fn">cudaEventDestroy</span>(stop);
+    <span class="fn">cudaFree</span>(d_a);
+    <span class="fn">cudaFree</span>(d_b);
+    <span class="fn">cudaFree</span>(d_c);
+    <span class="fn">cudaFreeHost</span>(h_a);
+    <span class="fn">cudaFreeHost</span>(h_b);
+    <span class="fn">cudaFreeHost</span>(h_c);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</code></pre>
+    </div>
+
+    <h3>Inter-Stream Synchronisation</h3>
+    <p>Use <code style="color: var(--accent);">cudaStreamWaitEvent()</code> to create dependencies between streams without blocking the host.</p>
+
+    <div class="code-block">
+        <div class="code-header">stream_wait_event.cu</div>
+        <pre><code><span class="type">cudaEvent_t</span> dataReady;
+<span class="fn">cudaEventCreate</span>(&amp;dataReady);
+
+<span class="cm">// Stream 1 does the copy, records when done</span>
+<span class="fn">cudaMemcpyAsync</span>(d_data, h_data, size, cudaMemcpyHostToDevice, stream1);
+<span class="fn">cudaEventRecord</span>(dataReady, stream1);
+
+<span class="cm">// Stream 2 waits for the event, then computes</span>
+<span class="fn">cudaStreamWaitEvent</span>(stream2, dataReady);
+<span class="fn">processKernel</span>&lt;&lt;&lt;grid, block, <span class="num">0</span>, stream2&gt;&gt;&gt;(d_data);</code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Why Not Just Use One Stream?</div>
+        <p><code style="color: var(--accent);">cudaStreamWaitEvent</code> only blocks the <strong>GPU stream</strong>, not the host. The host can keep issuing work to other streams. This is how you build complex dependency graphs while keeping the GPU busy.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 05 — Pipelined Processing ═══════════════════════════════ -->
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Practical Pattern &mdash; Pipelined Processing</h2>
+
+    <p>The most important stream pattern: split your data into <strong>chunks</strong> and pipeline them. While chunk N is being computed, chunk N+1 is being transferred. This maximises hardware utilisation.</p>
+
+    <h3>Pipeline Strategy</h3>
+    <div class="diagram-flow">
+        <div class="diagram-box">Split Data</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box accent">Copy Chunk i</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box accent">Compute Chunk i</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box accent">Copy Back Chunk i</div>
+        <div class="diagram-arrow">&rarr;</div>
+        <div class="diagram-box">Next i</div>
+    </div>
+
+    <h3>Pipelined Timeline (4 Chunks, 4 Streams)</h3>
+    <div class="timeline-diagram">
+        <div class="timeline-label">Each Stream Handles One Chunk &mdash; Stages Overlap</div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 0</div>
+            <div class="timeline-track">
+                <div class="timeline-bar h2d" style="flex: 1;">H&rarr;D</div>
+                <div class="timeline-bar compute" style="flex: 2;">Compute</div>
+                <div class="timeline-bar d2h" style="flex: 1;">D&rarr;H</div>
+                <div class="timeline-bar idle" style="flex: 5;"></div>
+            </div>
+        </div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 1</div>
+            <div class="timeline-track">
+                <div class="timeline-bar idle" style="flex: 1;"></div>
+                <div class="timeline-bar h2d" style="flex: 1;">H&rarr;D</div>
+                <div class="timeline-bar compute" style="flex: 2;">Compute</div>
+                <div class="timeline-bar d2h" style="flex: 1;">D&rarr;H</div>
+                <div class="timeline-bar idle" style="flex: 4;"></div>
+            </div>
+        </div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 2</div>
+            <div class="timeline-track">
+                <div class="timeline-bar idle" style="flex: 2;"></div>
+                <div class="timeline-bar h2d" style="flex: 1;">H&rarr;D</div>
+                <div class="timeline-bar compute" style="flex: 2;">Compute</div>
+                <div class="timeline-bar d2h" style="flex: 1;">D&rarr;H</div>
+                <div class="timeline-bar idle" style="flex: 3;"></div>
+            </div>
+        </div>
+        <div class="timeline-row">
+            <div class="timeline-row-label">Stream 3</div>
+            <div class="timeline-track">
+                <div class="timeline-bar idle" style="flex: 3;"></div>
+                <div class="timeline-bar h2d" style="flex: 1;">H&rarr;D</div>
+                <div class="timeline-bar compute" style="flex: 2;">Compute</div>
+                <div class="timeline-bar d2h" style="flex: 1;">D&rarr;H</div>
+                <div class="timeline-bar idle" style="flex: 2;"></div>
+            </div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); text-align: center; margin-top: 0.75rem;">
+            H&rarr;D, Compute, and D&rarr;H from different chunks run simultaneously
+        </div>
+        <div class="timeline-legend">
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch compute"></div> Compute</div>
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch h2d"></div> Host &rarr; Device</div>
+            <div class="timeline-legend-item"><div class="timeline-legend-swatch d2h"></div> Device &rarr; Host</div>
+        </div>
+    </div>
+
+    <h3>Complete Pipelined Example</h3>
+    <div class="code-block">
+        <div class="code-header">pipelined_processing.cu &mdash; compilable: nvcc -o pipelined pipelined_processing.cu</div>
+        <pre><code><span class="dir">#include</span> <span class="str">&lt;cstdio&gt;</span>
+<span class="dir">#include</span> <span class="str">&lt;cuda_runtime.h&gt;</span>
+
+<span class="kw">__global__</span> <span class="kw">void</span> <span class="fn">squareKernel</span>(<span class="type">float</span> *data, <span class="type">int</span> N) {
+    <span class="type">int</span> idx = blockIdx.x * blockDim.x + threadIdx.x;
+    <span class="kw">if</span> (idx &lt; N) {
+        <span class="type">float</span> val = data[idx];
+        data[idx] = val * val;
+    }
+}
+
+<span class="type">int</span> <span class="fn">main</span>() {
+    <span class="kw">const</span> <span class="type">int</span> TOTAL = <span class="num">1</span> &lt;&lt; <span class="num">22</span>;      <span class="cm">// 4M elements total</span>
+    <span class="kw">const</span> <span class="type">int</span> NUM_STREAMS = <span class="num">4</span>;
+    <span class="kw">const</span> <span class="type">int</span> CHUNK = TOTAL / NUM_STREAMS;
+    <span class="kw">const</span> <span class="type">size_t</span> chunkBytes = CHUNK * <span class="kw">sizeof</span>(<span class="type">float</span>);
+
+    <span class="cm">// Pinned host memory</span>
+    <span class="type">float</span> *h_data;
+    <span class="fn">cudaMallocHost</span>(&amp;h_data, TOTAL * <span class="kw">sizeof</span>(<span class="type">float</span>));
+    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; TOTAL; i++)
+        h_data[i] = <span class="num">3.0f</span>;
+
+    <span class="cm">// Device memory</span>
+    <span class="type">float</span> *d_data;
+    <span class="fn">cudaMalloc</span>(&amp;d_data, TOTAL * <span class="kw">sizeof</span>(<span class="type">float</span>));
+
+    <span class="cm">// Create streams and events for timing</span>
+    <span class="type">cudaStream_t</span> streams[NUM_STREAMS];
+    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; NUM_STREAMS; i++)
+        <span class="fn">cudaStreamCreate</span>(&amp;streams[i]);
+
+    <span class="type">cudaEvent_t</span> start, stop;
+    <span class="fn">cudaEventCreate</span>(&amp;start);
+    <span class="fn">cudaEventCreate</span>(&amp;stop);
+
+    <span class="type">int</span> threads = <span class="num">256</span>;
+    <span class="type">int</span> blocks = (CHUNK + threads - <span class="num">1</span>) / threads;
+
+    <span class="cm">// ── Pipelined execution ──</span>
+    <span class="fn">cudaEventRecord</span>(start);
+
+    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; NUM_STREAMS; i++) {
+        <span class="type">int</span> offset = i * CHUNK;
+        <span class="cm">// Stage 1: Copy chunk to device</span>
+        <span class="fn">cudaMemcpyAsync</span>(d_data + offset, h_data + offset,
+                        chunkBytes, cudaMemcpyHostToDevice, streams[i]);
+        <span class="cm">// Stage 2: Compute on chunk</span>
+        <span class="fn">squareKernel</span>&lt;&lt;&lt;blocks, threads, <span class="num">0</span>, streams[i]&gt;&gt;&gt;(
+            d_data + offset, CHUNK);
+        <span class="cm">// Stage 3: Copy results back</span>
+        <span class="fn">cudaMemcpyAsync</span>(h_data + offset, d_data + offset,
+                        chunkBytes, cudaMemcpyDeviceToHost, streams[i]);
+    }
+
+    <span class="fn">cudaEventRecord</span>(stop);
+    <span class="fn">cudaEventSynchronize</span>(stop);
+
+    <span class="type">float</span> ms = <span class="num">0.0f</span>;
+    <span class="fn">cudaEventElapsedTime</span>(&amp;ms, start, stop);
+    <span class="fn">printf</span>(<span class="str">"Pipelined execution: %.3f ms\n"</span>, ms);
+
+    <span class="cm">// ── Sequential baseline for comparison ──</span>
+    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; TOTAL; i++)
+        h_data[i] = <span class="num">3.0f</span>;
+
+    <span class="fn">cudaEventRecord</span>(start);
+
+    <span class="fn">cudaMemcpy</span>(d_data, h_data, TOTAL * <span class="kw">sizeof</span>(<span class="type">float</span>),
+               cudaMemcpyHostToDevice);
+    <span class="fn">squareKernel</span>&lt;&lt;&lt;(TOTAL + <span class="num">255</span>) / <span class="num">256</span>, <span class="num">256</span>&gt;&gt;&gt;(d_data, TOTAL);
+    <span class="fn">cudaMemcpy</span>(h_data, d_data, TOTAL * <span class="kw">sizeof</span>(<span class="type">float</span>),
+               cudaMemcpyDeviceToHost);
+
+    <span class="fn">cudaEventRecord</span>(stop);
+    <span class="fn">cudaEventSynchronize</span>(stop);
+
+    <span class="fn">cudaEventElapsedTime</span>(&amp;ms, start, stop);
+    <span class="fn">printf</span>(<span class="str">"Sequential execution: %.3f ms\n"</span>, ms);
+
+    <span class="cm">// Verify</span>
+    <span class="fn">printf</span>(<span class="str">"h_data[0] = %.1f (expected 9.0)\n"</span>, h_data[<span class="num">0</span>]);
+
+    <span class="cm">// Cleanup</span>
+    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; NUM_STREAMS; i++)
+        <span class="fn">cudaStreamDestroy</span>(streams[i]);
+    <span class="fn">cudaEventDestroy</span>(start);
+    <span class="fn">cudaEventDestroy</span>(stop);
+    <span class="fn">cudaFree</span>(d_data);
+    <span class="fn">cudaFreeHost</span>(h_data);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Optimal Issue Order</div>
+        <p>For best overlap on GPUs with a single copy engine, interleave the issue order: all H&rarr;D copies first, then all kernels, then all D&rarr;H copies. However, the loop-per-stream pattern shown above works well on GPUs with dual copy engines (most modern GPUs) and is simpler to write and maintain.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 06 — Null Stream & Per-Thread ═══════════════════════════════ -->
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>The Null Stream &amp; <code style="color: var(--accent);">--default-stream per-thread</code></h2>
+
+    <p>The <strong>null stream</strong> (stream 0) has special synchronisation behaviour that can silently kill your concurrency. Understanding it is critical.</p>
+
+    <h3>Legacy vs Per-Thread Default Stream</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Legacy (Default)</h4>
+            <ul>
+                <li>Stream 0 is a <strong>synchronising stream</strong></li>
+                <li>An operation on stream 0 waits for <strong>all</strong> prior work on <strong>all</strong> streams</li>
+                <li>All streams wait for stream 0 operations to complete</li>
+                <li>Effectively serialises everything</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Per-Thread (<code>--default-stream per-thread</code>)</h4>
+            <ul>
+                <li>Each host thread gets its own default stream</li>
+                <li>The per-thread default stream does <strong>not</strong> synchronise with other streams</li>
+                <li>Enables concurrency even without explicit stream creation</li>
+                <li>Behaves like a regular (non-null) stream</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Compilation Flags</h3>
+    <div class="code-block">
+        <div class="code-header">compilation options</div>
+        <pre><code><span class="cm"># Legacy behaviour (default)</span>
+nvcc -o myapp myapp.cu
+
+<span class="cm"># Per-thread default stream</span>
+nvcc <span class="str">--default-stream per-thread</span> -o myapp myapp.cu
+
+<span class="cm"># Alternatively, define before including CUDA headers:</span>
+<span class="dir">#define</span> <span class="mac">CUDA_API_PER_THREAD_DEFAULT_STREAM</span>
+<span class="dir">#include</span> <span class="str">&lt;cuda_runtime.h&gt;</span></code></pre>
+    </div>
+
+    <h3>The Trap in Practice</h3>
+    <div class="code-block">
+        <div class="code-header">null_stream_trap.cu</div>
+        <pre><code><span class="type">cudaStream_t</span> s1;
+<span class="fn">cudaStreamCreate</span>(&amp;s1);
+
+<span class="fn">kernelA</span>&lt;&lt;&lt;grid, block, <span class="num">0</span>, s1&gt;&gt;&gt;();   <span class="cm">// issued to stream s1</span>
+<span class="fn">kernelB</span>&lt;&lt;&lt;grid, block&gt;&gt;&gt;();            <span class="cm">// issued to stream 0 (null stream)</span>
+<span class="fn">kernelC</span>&lt;&lt;&lt;grid, block, <span class="num">0</span>, s1&gt;&gt;&gt;();   <span class="cm">// issued to stream s1</span>
+
+<span class="cm">// With LEGACY null stream:</span>
+<span class="cm">//   kernelA starts</span>
+<span class="cm">//   kernelB waits for kernelA to finish (stream 0 syncs)</span>
+<span class="cm">//   kernelC waits for kernelB to finish (stream 0 syncs)</span>
+<span class="cm">//   Result: ALL THREE are serialised!</span>
+<span class="cm">//</span>
+<span class="cm">// With PER-THREAD default stream:</span>
+<span class="cm">//   kernelA and kernelB can overlap</span>
+<span class="cm">//   kernelC waits only for kernelA (same stream s1)</span></code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Best Practice</div>
+        <p>Always use <strong>explicit streams</strong> for production code. Never rely on the null stream for concurrent work. If you use libraries that issue to the default stream, compile with <code style="color: var(--accent);">--default-stream per-thread</code> to avoid accidental serialisation.</p>
+    </div>
+
+    <h3>Non-Blocking Streams</h3>
+    <p>You can also create streams that do not synchronise with the null stream:</p>
+    <div class="code-block">
+        <div class="code-header">non_blocking_stream.cu</div>
+        <pre><code><span class="type">cudaStream_t</span> stream;
+<span class="fn">cudaStreamCreateWithFlags</span>(&amp;stream, cudaStreamNonBlocking);
+<span class="cm">// This stream will NOT synchronise with the null stream</span></code></pre>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 07 — Exercises ═══════════════════════════════ -->
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Exercises</h2>
+
+    <p>Put your understanding of streams and async execution to the test with these hands-on challenges.</p>
+
+    <h3>Exercise 1: Pipelined Vector Addition</h3>
+    <div class="diagram-panel accent-border" style="margin: 1rem 0;">
+        <h4>Goal</h4>
+        <p>Implement a pipelined vector addition that splits two input arrays into <strong>N_STREAMS</strong> chunks, copies each chunk to the device, computes the sum, and copies the result back &mdash; all using separate streams.</p>
+        <ul style="margin-top: 0.5rem;">
+            <li>Use <code style="color: var(--accent);">cudaMallocHost</code> for all host allocations</li>
+            <li>Use <code style="color: var(--accent);">cudaMemcpyAsync</code> for all transfers</li>
+            <li>Experiment with 1, 2, 4, and 8 streams</li>
+            <li>Verify correctness by checking output values</li>
+        </ul>
+    </div>
+
+    <h3>Exercise 2: Measure the Speedup</h3>
+    <div class="diagram-panel accent-border" style="margin: 1rem 0;">
+        <h4>Goal</h4>
+        <p>Using CUDA events, measure and compare:</p>
+        <ul style="margin-top: 0.5rem;">
+            <li><strong>Baseline:</strong> sequential execution (single cudaMemcpy + kernel + cudaMemcpy)</li>
+            <li><strong>Pipelined:</strong> execution with 2, 4, and 8 streams</li>
+            <li>Print a table showing the speedup for each stream count</li>
+            <li>Try with different data sizes (1M, 4M, 16M, 64M elements)</li>
+        </ul>
+    </div>
+
+    <h3>Exercise 3: Inter-Stream Dependencies</h3>
+    <div class="diagram-panel accent-border" style="margin: 1rem 0;">
+        <h4>Goal</h4>
+        <p>Create a scenario where stream 2 must wait for stream 1 to produce a result before it can start computing:</p>
+        <ul style="margin-top: 0.5rem;">
+            <li>Stream 1: copy data, compute partial result</li>
+            <li>Use <code style="color: var(--accent);">cudaEventRecord</code> + <code style="color: var(--accent);">cudaStreamWaitEvent</code> for the dependency</li>
+            <li>Stream 2: wait for stream 1's result, then compute the final answer</li>
+            <li>Verify that removing the event wait produces incorrect results</li>
+        </ul>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Profiling Tip</div>
+        <p>Use <code style="color: var(--accent);">nsys profile ./your_app</code> (Nsight Systems) to visually inspect your timeline. You'll see whether streams actually overlap or if accidental null-stream usage is serialising them.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 08 — Summary & Next Steps ═══════════════════════════════ -->
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Summary &amp; Next Steps</h2>
+
+    <h3>What We Covered</h3>
+    <ul>
+        <li><strong>The default stream trap</strong> &mdash; stream 0 serialises everything by default, leaving copy engines idle while kernels run (and vice versa).</li>
+        <li><strong>CUDA streams</strong> &mdash; independent command queues where operations run in FIFO order within a stream but can overlap across streams.</li>
+        <li><strong>Async transfers</strong> &mdash; <code style="color: var(--accent);">cudaMemcpyAsync</code> with pinned memory enables concurrent copy and compute.</li>
+        <li><strong>CUDA events</strong> &mdash; lightweight markers for precise GPU timing and inter-stream synchronisation without blocking the host.</li>
+        <li><strong>Pipelining</strong> &mdash; splitting data into chunks and processing them in separate streams to maximise hardware utilisation.</li>
+        <li><strong>Per-thread default stream</strong> &mdash; the <code style="color: var(--accent);">--default-stream per-thread</code> flag eliminates null-stream serialisation for multi-threaded host code.</li>
+    </ul>
+
+    <h3>Key Takeaways</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Always Use Pinned Memory</h4>
+            <p>Async transfers require <code style="color: var(--accent);">cudaMallocHost</code>. Without pinned memory, <code>cudaMemcpyAsync</code> silently falls back to synchronous behaviour.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Profile Your Streams</h4>
+            <p>Use Nsight Systems to verify overlap. The GPU timeline visualisation immediately shows whether your streams are actually concurrent.</p>
+        </div>
+    </div>
+
+    <h3>Next Tutorial</h3>
+    <div class="callout">
+        <div class="callout-label">Up Next — Tutorial 09</div>
+        <p><strong><a href="https://brendanjameslynskey.github.io/CUDA_09_Libraries/" style="color: var(--accent); text-decoration: none;">CUDA Libraries</a></strong> &mdash; leverage cuBLAS, cuFFT, cuRAND, and Thrust to accelerate common operations without writing custom kernels. Learn when to use a library vs rolling your own.</p>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════ Footer ════════════════════════════════════ -->
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLMs#cuda-programming">CUDA Programming Series</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">Streams &amp; Async Execution &mdash; Tutorial 08 of 10</p>
+</footer>
+
+<script>
+    // Smooth scroll for table-of-contents links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+
+    // Subtle fade-in animation for slides on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+
+</body>
+</html>
